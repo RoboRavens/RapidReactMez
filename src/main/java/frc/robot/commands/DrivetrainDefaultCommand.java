@@ -1,30 +1,51 @@
 package frc.robot.commands;
 
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.kinematics.ChassisSpeeds;
+import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj2.command.CommandBase;
+import frc.robot.Constants;
 import frc.robot.Robot;
+import frc.robot.subsystems.DrivetrainSubsystem;
+import frc.util.Deadband;
 
 public class DrivetrainDefaultCommand extends CommandBase {
+    public boolean CutPower = false;
+
     @Override
     public void execute() {
-        // You can use `new ChassisSpeeds(...)` for robot-oriented movement instead of field-oriented movement
-        double x = Robot.m_controller.getRawAxis(0) * -1; // Robot.JOYSTICK.getRawAxis(1); // Positive x is away from your alliance wall.
-        double y = Robot.m_controller.getRawAxis(1) * -1; // Robot.JOYSTICK.getRawAxis(0); // Positive y is to your left when standing behind the alliance wall.
-        double r; // The angular rate of the robot.
-        Rotation2d a = Robot.DRIVE_TRAIN_SUBSYSTEM.getOdometryRotation(); // The angle of the robot as measured by a gyroscope. The robot's angle is considered to be zero when it is facing directly away from your alliance station wall.
+        double controllerDirection = Robot.allianceColor == Alliance.Red ? 1 : -1;
+        double x = Robot.m_controller.getRawAxis(0) * controllerDirection; // Positive x is away from your alliance wall.
+        double y = Robot.m_controller.getRawAxis(1) * controllerDirection; // Positive y is to your left when standing behind the alliance wall.
+        // TODO: Find the correct rotation joystick axis
+        double r = Robot.m_controller.getRawAxis(2) * -1; // The angular rate of the robot.
+        Rotation2d a = Robot.DRIVETRAIN_SUBSYSTEM.getOdometryRotation(); // The angle of the robot as measured by a gyroscope. The robot's angle is considered to be zero when it is facing directly away from your alliance station wall.
 
         x = Deadband.adjustValueToZero(x, Constants.JOYSTICK_DEADBAND);
         y = Deadband.adjustValueToZero(y, Constants.JOYSTICK_DEADBAND);
-
-        double rightJoystickInput = Robot.GAMEPAD.getAxis(AxisCode.RIGHTSTICKX) * -1; // Robot.JOYSTICK.getRawAxis(2);
-        rightJoystickInput = Deadband.adjustValueToZero(rightJoystickInput, Constants.JOYSTICK_DEADBAND);
-
-        // SmartDashboard.putNumber("Drive Time", Timer.getFPGATimestamp());
-        // SmartDashboard.putNumber("Drive X", x);
-        // SmartDashboard.putNumber("Drive Y", y);
+        r = Deadband.adjustValueToZero(r, Constants.JOYSTICK_DEADBAND);
 
         x = x * DrivetrainSubsystem.MAX_VELOCITY_METERS_PER_SECOND;
         y = y * DrivetrainSubsystem.MAX_VELOCITY_METERS_PER_SECOND;
+        r = r * Constants.DRIVE_MAX_TURN_RADIANS_PER_SECOND;
 
+        // TODO: remember to include cut power in drive method
+        var targetChassisSpeeds = ChassisSpeeds.fromFieldRelativeSpeeds(
+            x, // x translation
+            y, // y translation
+            r, // rotation
+            a // The angle of the robot as measured by a gyroscope.
+        );
+
+        if (x == 0 && y == 0 && r == 0) {
+            Robot.DRIVETRAIN_SUBSYSTEM.drive(new ChassisSpeeds(0.0, 0.0, 0.0));
+        } else {
+            Robot.DRIVETRAIN_SUBSYSTEM.drive(targetChassisSpeeds);
+        }
+    }
+
+    @Override
+    public void end(boolean interrupted) {
+        Robot.DRIVETRAIN_SUBSYSTEM.drive(new ChassisSpeeds(0.0, 0.0, 0.0));
     }
 }

@@ -4,12 +4,18 @@
 
 package frc.robot;
 
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.XboxController;
+import edu.wpi.first.wpilibj.DriverStation.Alliance;
+import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.button.JoystickButton;
+import edu.wpi.first.wpilibj2.command.button.Trigger;
+import frc.robot.commands.DrivetrainDefaultCommand;
 import frc.robot.commands.ShootBallCommand;
 import frc.robot.subsystems.ConveyanceSubsystem;
 import frc.robot.subsystems.ConveyanceTwoSubsystem;
+import frc.robot.subsystems.DrivetrainSubsystem;
 import frc.robot.subsystems.FeederSubsystem;
 import frc.robot.subsystems.ShooterMotorsSubsystem;
 
@@ -20,23 +26,23 @@ import frc.robot.subsystems.ShooterMotorsSubsystem;
  * directory.
  */
 public class Robot extends TimedRobot {
-  public static XboxController m_controller;
-  public static ConveyanceSubsystem conveyanceSubsystem;
-  public static ConveyanceTwoSubsystem conveyanceTwoSubsystem;
-  public static FeederSubsystem feederSubsystem;
-  public static ShooterMotorsSubsystem shooterMotors;
+  public static XboxController m_controller = new XboxController(0);
+  public static ConveyanceSubsystem conveyanceSubsystem = new ConveyanceSubsystem();
+  public static ConveyanceTwoSubsystem conveyanceTwoSubsystem = new ConveyanceTwoSubsystem();
+  public static FeederSubsystem feederSubsystem = new FeederSubsystem();
+  public static ShooterMotorsSubsystem shooterMotors = new ShooterMotorsSubsystem();
+  public static DrivetrainSubsystem DRIVETRAIN_SUBSYSTEM;
+  public static DriverStation.Alliance allianceColor = Alliance.Invalid;
+  public static final DrivetrainDefaultCommand DRIVETRAIN_DEFAULT_COMMAND = new DrivetrainDefaultCommand();
 
   public Robot() {
-    m_controller = new XboxController(0);
-    conveyanceSubsystem  = new ConveyanceSubsystem();
-    conveyanceTwoSubsystem = new ConveyanceTwoSubsystem();
-    feederSubsystem = new FeederSubsystem();
-    shooterMotors = new ShooterMotorsSubsystem();
-
     JoystickButton button1 = new JoystickButton(m_controller, 1);
-
     button1.onTrue(new ShootBallCommand());
+  }
 
+  @Override
+  public void robotPeriodic() {
+    setDriverStationData();
   }
 
   /**
@@ -45,13 +51,18 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void robotInit() {
-   
+    // Reduces drivetrain speed when pressed
+    new Trigger(() -> m_controller.getRightTriggerAxis() > 0) // TODO: check this axis (does it trigger when the right trigger is pressed?)
+    .whileTrue(new InstantCommand(() -> new InstantCommand(() -> DRIVETRAIN_SUBSYSTEM.cutPower())))
+    .onFalse(new InstantCommand(() -> new InstantCommand(() -> DRIVETRAIN_SUBSYSTEM.stopCutPower())));
+
+    DRIVETRAIN_SUBSYSTEM.setDefaultCommand(DRIVETRAIN_DEFAULT_COMMAND);
   }
 
   /** This function is run once each time the robot enters autonomous mode. */
   @Override
   public void autonomousInit() {
-   
+    setDriverStationData();
   }
 
   /** This function is called periodically during autonomous. */
@@ -64,7 +75,7 @@ public class Robot extends TimedRobot {
   /** This function is called once each time the robot enters teleoperated mode. */
   @Override
   public void teleopInit() {
-
+    setDriverStationData();
   }
 
   /** This function is called periodically during teleoperated mode. */
@@ -85,4 +96,10 @@ public class Robot extends TimedRobot {
   /** This function is called periodically during test mode. */
   @Override
   public void testPeriodic() {}
+  // Due to the manner in which the robot connects to the driver station,
+  // which differs between the shop and match play,
+  // this method needs to called both periodically AND in the auto/tele init methods.
+  private void setDriverStationData() {
+    allianceColor = DriverStation.getAlliance();
+  }
 }
