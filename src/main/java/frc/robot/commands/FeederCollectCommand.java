@@ -4,25 +4,31 @@
 
 package frc.robot.commands;
 
+import frc.robot.Robot;
 import edu.wpi.first.wpilibj2.command.CommandBase;
 
-public class TurnShooterOnCommand extends CommandBase {
-  /** Creates a new TurnShooterOn. */
-  public TurnShooterOnCommand() {
+public class FeederCollectCommand extends CommandBase {
+  
+  public FeederCollectCommand() {
     // Use addRequirements() here to declare subsystem dependencies.
+    addRequirements(Robot.FEEDER_SUBSYSTEM);
   }
-
+ 
   // Called when the command is initially scheduled.
   @Override
   public void initialize() {}
 
   // Called every time the scheduler runs while the command is scheduled.
   @Override
-  public void execute() {}
+  public void execute() {
+    Robot.FEEDER_SUBSYSTEM.setConveyanceNormalSpeedForward();
+  }
 
   // Called once the command ends or is interrupted.
   @Override
-  public void end(boolean interrupted) {}
+  public void end(boolean interrupted) {
+    Robot.FEEDER_SUBSYSTEM.conveyanceStop();
+  }
 
   // Returns true when the command should end.
   @Override

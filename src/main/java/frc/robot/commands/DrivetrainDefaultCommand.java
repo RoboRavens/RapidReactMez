@@ -12,13 +12,22 @@ import frc.util.Deadband;
 public class DrivetrainDefaultCommand extends CommandBase {
     public boolean CutPower = false;
 
+    public DrivetrainDefaultCommand() {
+        System.out.println("drivetrain default constructor");
+        addRequirements(Robot.DRIVETRAIN_SUBSYSTEM);
+    }
+
+    @Override
+    public void initialize() {
+        System.out.println("drivetrain default init");
+    }
+
     @Override
     public void execute() {
         double controllerDirection = Robot.allianceColor == Alliance.Red ? 1 : -1;
         double x = Robot.m_controller.getRawAxis(0) * controllerDirection; // Positive x is away from your alliance wall.
         double y = Robot.m_controller.getRawAxis(1) * controllerDirection; // Positive y is to your left when standing behind the alliance wall.
-        // TODO: Find the correct rotation joystick axis
-        double r = Robot.m_controller.getRawAxis(2) * -1; // The angular rate of the robot.
+        double r = Robot.m_controller.getRawAxis(4) * -1; // The angular rate of the robot.
         Rotation2d a = Robot.DRIVETRAIN_SUBSYSTEM.getOdometryRotation(); // The angle of the robot as measured by a gyroscope. The robot's angle is considered to be zero when it is facing directly away from your alliance station wall.
 
         x = Deadband.adjustValueToZero(x, Constants.JOYSTICK_DEADBAND);
@@ -29,7 +38,6 @@ public class DrivetrainDefaultCommand extends CommandBase {
         y = y * DrivetrainSubsystem.MAX_VELOCITY_METERS_PER_SECOND;
         r = r * Constants.DRIVE_MAX_TURN_RADIANS_PER_SECOND;
 
-        // TODO: remember to include cut power in drive method
         var targetChassisSpeeds = ChassisSpeeds.fromFieldRelativeSpeeds(
             x, // x translation
             y, // y translation

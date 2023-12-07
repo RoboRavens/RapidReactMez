@@ -8,16 +8,18 @@ import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
-import edu.wpi.first.wpilibj2.command.InstantCommand;
-import edu.wpi.first.wpilibj2.command.button.JoystickButton;
+import edu.wpi.first.wpilibj2.command.CommandScheduler;
+import edu.wpi.first.wpilibj2.command.ParallelCommandGroup;
+import edu.wpi.first.wpilibj2.command.RunCommand;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.robot.commands.DrivetrainDefaultCommand;
-import frc.robot.commands.ShootBallCommand;
+import frc.robot.commands.FeederCollectCommand;
+import frc.robot.commands.FeederStopCommand;
+import frc.robot.commands.ShooterStartCommand;
 import frc.robot.subsystems.ConveyanceSubsystem;
-import frc.robot.subsystems.ConveyanceTwoSubsystem;
 import frc.robot.subsystems.DrivetrainSubsystem;
 import frc.robot.subsystems.FeederSubsystem;
-import frc.robot.subsystems.ShooterMotorsSubsystem;
+import frc.robot.subsystems.ShooterSubsystem;
 
 /**
  * The VM is configured to automatically run this class, and to call the functions corresponding to
@@ -27,21 +29,21 @@ import frc.robot.subsystems.ShooterMotorsSubsystem;
  */
 public class Robot extends TimedRobot {
   public static XboxController m_controller = new XboxController(0);
-  public static ConveyanceSubsystem conveyanceSubsystem = new ConveyanceSubsystem();
-  public static ConveyanceTwoSubsystem conveyanceTwoSubsystem = new ConveyanceTwoSubsystem();
-  public static FeederSubsystem feederSubsystem = new FeederSubsystem();
-  public static ShooterMotorsSubsystem shooterMotors = new ShooterMotorsSubsystem();
-  public static DrivetrainSubsystem DRIVETRAIN_SUBSYSTEM;
   public static DriverStation.Alliance allianceColor = Alliance.Invalid;
-  public static final DrivetrainDefaultCommand DRIVETRAIN_DEFAULT_COMMAND = new DrivetrainDefaultCommand();
 
-  public Robot() {
-    JoystickButton button1 = new JoystickButton(m_controller, 1);
-    button1.onTrue(new ShootBallCommand());
-  }
+  public static ConveyanceSubsystem CONVEYANCE_SUBSYSTEM = new ConveyanceSubsystem();
+  public static DrivetrainSubsystem DRIVETRAIN_SUBSYSTEM = new DrivetrainSubsystem();
+  public static final FeederSubsystem FEEDER_SUBSYSTEM = new FeederSubsystem(); 
+  public static final ShooterSubsystem SHOOTER_SUBSYSTEM = new ShooterSubsystem();
+
+  public static final DrivetrainDefaultCommand DRIVETRAIN_DEFAULT_COMMAND = new DrivetrainDefaultCommand();
+  public static final FeederCollectCommand FEEDER_COLLECT_COMMAND = new FeederCollectCommand();
+  public static final FeederStopCommand FEEDER_STOP_COMMAND = new FeederStopCommand();
+  public static final ShooterStartCommand SHOOTER_START_COMMAND = new ShooterStartCommand();
 
   @Override
   public void robotPeriodic() {
+    CommandScheduler.getInstance().run();
     setDriverStationData();
   }
 
@@ -51,12 +53,27 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void robotInit() {
-    // Reduces drivetrain speed when pressed
-    new Trigger(() -> m_controller.getRightTriggerAxis() > 0) // TODO: check this axis (does it trigger when the right trigger is pressed?)
-    .whileTrue(new InstantCommand(() -> new InstantCommand(() -> DRIVETRAIN_SUBSYSTEM.cutPower())))
-    .onFalse(new InstantCommand(() -> new InstantCommand(() -> DRIVETRAIN_SUBSYSTEM.stopCutPower())));
-
     DRIVETRAIN_SUBSYSTEM.setDefaultCommand(DRIVETRAIN_DEFAULT_COMMAND);
+    SHOOTER_SUBSYSTEM.setDefaultCommand(new RunCommand(() -> SHOOTER_SUBSYSTEM.stopMotor(), SHOOTER_SUBSYSTEM));
+    FEEDER_SUBSYSTEM.setDefaultCommand(FEEDER_STOP_COMMAND);
+    CONVEYANCE_SUBSYSTEM.setDefaultCommand(new RunCommand(() -> CONVEYANCE_SUBSYSTEM.motorStop(), CONVEYANCE_SUBSYSTEM));
+    
+    // // Reduces drivetrain speed when pressed
+    // new Trigger(() -> m_controller.getRightTriggerAxis() > 0)
+    // .whileTrue(new InstantCommand(() -> new InstantCommand(() -> DRIVETRAIN_SUBSYSTEM.cutPower())))
+    // .onFalse(new InstantCommand(() -> new InstantCommand(() -> DRIVETRAIN_SUBSYSTEM.stopCutPower())));
+    
+    // Run the conveyance
+    new Trigger(() -> m_controller.getAButton()).whileTrue(new ParallelCommandGroup(
+      new RunCommand(() -> CONVEYANCE_SUBSYSTEM.setConveyanceIndexCargoForward(), CONVEYANCE_SUBSYSTEM),
+      FEEDER_COLLECT_COMMAND
+    ));
+
+    // Rev the shooter
+    new Trigger(() -> m_controller.getLeftTriggerAxis() > 0).whileTrue(SHOOTER_START_COMMAND);
+
+    // Shoot
+    new Trigger(() -> m_controller.getRightTriggerAxis() > 0).whileTrue(new RunCommand(() -> FEEDER_SUBSYSTEM.forceShoot(), FEEDER_SUBSYSTEM));
   }
 
   /** This function is run once each time the robot enters autonomous mode. */
@@ -67,10 +84,7 @@ public class Robot extends TimedRobot {
 
   /** This function is called periodically during autonomous. */
   @Override
-  public void autonomousPeriodic() {
-    
- 
-  }
+  public void autonomousPeriodic() {}
 
   /** This function is called once each time the robot enters teleoperated mode. */
   @Override
@@ -80,14 +94,7 @@ public class Robot extends TimedRobot {
 
   /** This function is called periodically during teleoperated mode. */
   @Override
-  public void teleopPeriodic() {
-    conveyanceSubsystem.motorSpin();
-    conveyanceTwoSubsystem.motorSpin();
-    feederSubsystem.motorRotate();
-    shooterMotors.motorSpin();
-
-  }
- 
+  public void teleopPeriodic() {}
 
   /** This function is called once each time the robot enters test mode. */
   @Override
